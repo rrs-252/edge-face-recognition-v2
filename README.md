@@ -2,23 +2,21 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/edgeface-knn.svg)](https://pypi.org/project/edgeface-knn/)
 [![License](https://img.shields.io/pypi/l/edgeface-knn.svg)](https://pypi.org/project/edgeface-knn/)
+[![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+![Platform](https://img.shields.io/badge/platform-linux%20(native)%20%7C%20windows%20%7C%20macos-lightgrey)
 
-> ⚠️ Repository name contains `v2` to indicate the refactored codebase.  
-> The installable Python package is **`edgeface-knn`** and remains versioned independently of the repository name.
+**Real-time face recognition designed for CPU-only environments (laptops, embedded devices, Raspberry Pi).**
 
-Real-time face recognition designed for CPU-only environments — laptops, embedded systems, and Raspberry-Pi-class devices.
+A classical computer-vision pipeline (Haar Cascade + KNN) delivering ~40 ms inference latency without GPUs or deep-learning frameworks. Intended for offline attendance and privacy-sensitive deployments where cloud inference is not viable.
 
-Classical computer vision pipeline (Haar Cascade + KNN) engineered for deterministic low-latency inference without GPUs or deep learning frameworks.
+> **Install:** `pip install edgeface-knn`  
+> **Package name:** `edgeface-knn` (PyPI) | **Repository:** `edge-face-recognition-v2` (GitHub)
 
-**Latency:** ~40 ms per processed frame
-**Effective throughput:** ~15 FPS (frame-skipped real-time UX)
-
-> Originally built as a Raspberry Pi prototype (Sept 2024).
-> Refactored into a modular installable Python package (Dec 2025).
+**Performance:** ~40 ms per processed frame (~15 FPS effective)
 
 ---
 
-## What this project is
+## Problem Context
 
 A lightweight identity recognition system intended for:
 
@@ -32,18 +30,40 @@ The system prioritizes **correct identification over aggressive guessing** — u
 
 ---
 
-## Quick Install (Windows — recommended for usage)
+## Who is this for?
 
-Install the published package and run directly:
+- **Want to use it** → follow Quick Install
+- **Want to modify it** → follow Development Setup
+
+---
+
+## Installation
+
+### Quick Install (Recommended)
+Camera capture requires native OS execution (WSL users see section below).
 
 ```bash
 pip install edgeface-knn
 edge-face --help
+# Expected: shows collect/run commands
 ```
+
+### Development Setup
+
+```bash
+git clone https://github.com/SakshamBjj/edge-face-recognition-v2.git
+cd edge-face-recognition-v2
+pip install -e .
+```
+
+> Originally built as a Raspberry Pi prototype (Sept 2024).  
+> Refactored into a modular installable Python package (Dec 2025).
 
 ---
 
-### Collect faces
+## Usage
+
+### 1) Register people
 
 ```bash
 edge-face collect --name Alice
@@ -54,7 +74,7 @@ Captures 100 samples per person via webcam automatically.
 
 ---
 
-### Run recognition
+### 2) Run recognition
 
 ```bash
 edge-face run
@@ -75,32 +95,6 @@ attendance/YYYY-MM-DD.csv
 
 ---
 
-## Development Setup (WSL)
-
-Use this only if you want to modify the codebase or build the package.
-
-> WSL does not provide webcam access to OpenCV — runtime testing must be done on Windows.
-
-```bash
-git clone https://github.com/SakshamBjj/edge-face-recognition-v2.git
-cd edge-face-recognition-v2
-pip install -e .
-edge-face --help
-```
-
----
-
-## Testing the Development Version (Windows)
-
-After installing the editable package from WSL, open **Windows terminal (PowerShell/CMD)** inside the same project and run:
-
-```bash
-edge-face collect --name TestUser
-edge-face run
-```
-
----
-
 ### 3) Optional configuration
 
 Override default parameters:
@@ -111,18 +105,30 @@ edge-face run --config configs/my_config.yaml
 
 ---
 
-## Why this split exists
+## WSL Development Notes
 
-WSL is a virtualized Linux environment and does not provide direct access to webcam hardware.
-The package itself is OS-independent, but real-time capture requires native OS execution.
+> **Important:** Webcam access requires native OS execution. This limitation comes from WSL hardware virtualization — not the library.
 
-Typical workflow:
+**Development workflow:**
 
-| Task                    | Environment |
-| ----------------------- | ----------- |
-| Development / packaging | WSL         |
-| Face collection         | Windows     |
-| Real-time recognition   | Windows     |
+| Task                     | Environment       |
+| ------------------------ | ----------------- |
+| Code editing / packaging | WSL               |
+| Face collection          | Windows (native)  |
+| Real-time recognition    | Windows (native)  |
+
+**Testing from WSL:**
+
+```bash
+# In WSL: Install editable package
+pip install -e .
+
+# In Windows terminal (same project directory):
+edge-face collect --name TestUser
+edge-face run
+```
+
+The package itself is OS-independent, but webcam access requires native execution.
 
 ---
 
@@ -131,10 +137,10 @@ Typical workflow:
 ```
 Camera (30 FPS)
  → Grayscale conversion
- → Haar Cascade detection (~20 ms)
+ → Haar Cascade detection
  → Crop + resize (50×50)
  → Flatten vector
- → KNN classification (~15 ms)
+ → KNN classification
  → Confidence scoring
  → Unknown rejection
  → Overlay + logging
@@ -153,13 +159,13 @@ Instead of always predicting a nearest neighbor:
 | Confidence  | Result            |
 | ----------- | ----------------- |
 | ≥ threshold | Person identified |
-| < threshold | Marked “Unknown”  |
+| < threshold | Marked "Unknown"  |
 
 Prevents the most serious failure in face recognition systems: logging the wrong person.
 
 ---
 
-## Why Classical ML instead of Deep Learning?
+## Model Selection Rationale
 
 | Factor        | This Project (KNN)  | CNN Face Recognition |
 | ------------- | ------------------- | -------------------- |
@@ -168,8 +174,7 @@ Prevents the most serious failure in face recognition systems: logging the wrong
 | GPU required  | No                  | Yes                  |
 | Training data | ~100 samples/person | 1000+ samples/person |
 
-**Design goal:** predictable latency on CPU hardware
-—not maximum accuracy on servers.
+**Design goal:** predictable latency on CPU hardware — not maximum accuracy on servers.
 
 Deep learning was prototyped but exceeded real-time limits without GPU acceleration.
 
@@ -206,6 +211,19 @@ Deep learning was prototyped but exceeded real-time limits without GPU accelerat
 
 ---
 
+## Engineering Tradeoffs
+
+| Decision          | Reason                         | Cost                        |
+| ----------------- | ------------------------------ | --------------------------- |
+| Haar Cascade      | 20 ms detection                | Angle robustness            |
+| Raw pixels        | No feature extraction overhead | Less compact representation |
+| KNN               | No training step               | Scaling limits              |
+| Frame skipping    | Real-time UX                   | Slight temporal jitter      |
+| Unknown rejection | Avoid false positives          | Occasional false negatives  |
+
+
+---
+
 ## Package Layout
 
 ```
@@ -223,18 +241,6 @@ edge-face-recognition-v2/
 ├── data/              (generated)
 └── attendance/        (generated)
 ```
-
----
-
-## Engineering Tradeoffs
-
-| Decision          | Reason                         | Cost                        |
-| ----------------- | ------------------------------ | --------------------------- |
-| Haar Cascade      | 20 ms detection                | Angle robustness            |
-| Raw pixels        | No feature extraction overhead | Less compact representation |
-| KNN               | No training step               | Scaling limits              |
-| Frame skipping    | Real-time UX                   | Slight temporal jitter      |
-| Unknown rejection | Avoid false positives          | Occasional false negatives  |
 
 ---
 
@@ -266,5 +272,5 @@ Archived prototype available in repository history.
 
 ---
 
-**Author:** Saksham Bajaj
+**Author:** Saksham Bajaj  
 **License:** MIT
